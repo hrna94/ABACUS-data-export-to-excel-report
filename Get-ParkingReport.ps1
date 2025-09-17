@@ -1,10 +1,18 @@
+# --- HOW TO RUN THE SCRIPT ---
+# Save the code as a .ps1 file and run it from PowerShell.
+# Example 1: Use default timeframe (August 2025)
+# Get-ParkingReport
+#
+# Example 2: Specify a custom timeframe
+# Get-ParkingReport -startDate "DD.MM.YYYY hh:mm:ss" -endDate "DD.MM.YYYY hh:mm:ss"
+
 function Get-ParkingReport {
     param(
         [string]$eventFile = "01_EVT_250801_250831.txt",
         [string]$deviceFile = "01_INV_250801_250831.txt",
-        [string]$outputFile = "report_parkovani33.xlsx",
-        [string]$startDate = (Get-Date "01.08.2025 00:00:00").ToString("dd.MM.yyyy HH:mm:ss"),
-        [string]$endDate = (Get-Date "31.08.2025 23:59:59").ToString("dd.MM.yyyy HH:mm:ss")
+        [string]$outputFile = "report_parking.xlsx",
+        [string]$startDate = (Get-Date "01.01.2000 00:00:00").ToString("DD.MM.YYYY hh:mm:ss"),
+        [string]$endDate = (Get-Date "01.01.2045 00:00:00").ToString("DD.MM.YYYY hh:mm:ss")
     )
 
     # --- SCRIPT BODY STARTS HERE ---
@@ -161,11 +169,3 @@ function Get-ParkingReport {
 
     Write-Host "--- Script finished ---"
 }
-
-# --- HOW TO RUN THE SCRIPT ---
-# Save the code as a .ps1 file and run it from PowerShell.
-# Example 1: Use default timeframe (August 2025)
-# Get-ParkingReport
-#
-# Example 2: Specify a custom timeframe
-# Get-ParkingReport -startDate "01.08.2025 10:00:00" -endDate "02.08.2025 12:00:00"
