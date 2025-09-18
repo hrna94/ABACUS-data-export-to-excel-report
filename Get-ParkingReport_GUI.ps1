@@ -1,4 +1,4 @@
-﻿# --- AUTOMATICKÁ KONTROLA A INSTALACE MODULU ---
+﻿# --- AUTOMATIC MODULE CHECK & INSTALL  ---
 Write-Host "Checking for required module 'ImportExcel'..." -ForegroundColor Yellow
 
 $requiredModule = "ImportExcel"
@@ -23,8 +23,8 @@ if (-not $moduleIsInstalled) {
 }
 Write-Host "Module '$requiredModule' is available. Continuing with the script." -ForegroundColor Green
 
-# --- HLAVNÍ FUNKCE SKRIPTU ---
-# Tato funkce obsahuje veškerou logiku pro zpracování dat a export.
+# --- MAIN SCRIPT FUNCTION ---
+# This function contain the logic to process data and export.
 function Get-ParkingReport {
     param(
         [string]$eventFile,
@@ -235,7 +235,7 @@ function Get-ParkingReport {
     Write-Host "--- Script finished ---"
 }
 
-# --- GUI SECTION OF THE SCRIPT ---
+# --- GUI SECTION OF THE SKRIPTU ---
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -261,7 +261,8 @@ $dateTimePickerStartDate.Size = New-Object System.Drawing.Size(350, 20)
 $dateTimePickerStartDate.Format = "Custom"
 $dateTimePickerStartDate.CustomFormat = "dd.MM.yyyy HH:mm:ss"
 $dateTimePickerStartDate.ShowUpDown = $false
-$dateTimePickerStartDate.Value = (Get-Date).AddDays(-30) # Default value
+$dateTimePickerStartDate.ShowCheckBox = $true
+$dateTimePickerStartDate.Checked = $false
 $form.Controls.Add($dateTimePickerStartDate)
 
 $labelEndDate = New-Object System.Windows.Forms.Label
@@ -277,7 +278,8 @@ $dateTimePickerEndDate.Size = New-Object System.Drawing.Size(350, 20)
 $dateTimePickerEndDate.Format = "Custom"
 $dateTimePickerEndDate.CustomFormat = "dd.MM.yyyy HH:mm:ss"
 $dateTimePickerEndDate.ShowUpDown = $false
-$dateTimePickerEndDate.Value = (Get-Date) # Default value
+$dateTimePickerEndDate.ShowCheckBox = $true
+$dateTimePickerEndDate.Checked = $false
 $form.Controls.Add($dateTimePickerEndDate)
 
 # Button and field for input folder selection
@@ -342,13 +344,23 @@ $buttonRun.Add_Click({
     # Get values from GUI
     $inputFolder = $textBoxInputFolder.Text
     $outputFile = $textBoxOutputFile.Text
-    $startDate = $dateTimePickerStartDate.Value # Get the DateTime value directly
-    $endDate = $dateTimePickerEndDate.Value   # Get the DateTime value directly
+    $startDate = $null
+    $endDate = $null
 
-    # Ensure the end date includes the entire day
-    # We take the date part, add one day, and subtract one second.
-    # This ensures it's 23:59:59 on the selected end date, regardless of the time in the GUI.
-    $endDate = $endDate.Date.AddDays(1).AddSeconds(-1)
+    # Check if a start date is selected; if not, use the minimum possible date
+    if ($dateTimePickerStartDate.Checked) {
+        $startDate = $dateTimePickerStartDate.Value
+    } else {
+        $startDate = [datetime]::MinValue
+    }
+
+    # Check if an end date is selected; if not, use the maximum possible date
+    if ($dateTimePickerEndDate.Checked) {
+        # Ensure the end date includes the entire day
+        $endDate = $dateTimePickerEndDate.Value.Date.AddDays(1).AddSeconds(-1)
+    } else {
+        $endDate = [datetime]::MaxValue
+    }
     
     # Validate inputs
     if (-not $inputFolder) {
@@ -385,6 +397,7 @@ $buttonRun.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("An error occurred during report generation: `n$($_.Exception.Message)", "Error", "OK", "Error")
     }
     finally {
+        # Close the form only on success, otherwise keep it open to show the error
         if ($_.Exception -eq $null) {
             $form.Close()
         } else {
