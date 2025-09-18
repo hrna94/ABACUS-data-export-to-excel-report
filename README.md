@@ -1,36 +1,33 @@
 # PowerShell Parking Report Generator
 
-This PowerShell script is for automatically generating reports from a ABACUS DataExport. The script processes raw Events (EVT) and a System Inventory List (INV) to create a clear and organized report in Excel (.xlsx) format.
+This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport. 
+It processes raw Events (EVT) and a System Inventory List (INV) files.
 
 ## Key Features
 
-**Data Mapping:** The script automatically pairs entry and exit events with corresponding car park names and device names.
-**Time-Based Filtering:** Allows you to generate a report for a specific timeframe (based on the entry date and time).
-**Complete Records:** Ensures that the report includes full entry and exit data, even if the exit occurred outside the specified timeframe.
-**Excel Output:** Exports all processed data into a single Excel file for easy analysis.
-
-## Prerequisites
-- The script requires the ImportExcel module for PowerShell. If you don't have it, install it by running the following command in PowerShell with administrator privileges:
-**Install-Module -Name ImportExcel -Scope CurrentUser**
+* **GUI:** The script now features a user-friendly graphical interface, eliminating the need for command-line parameters.
+* **Automatic Installation:** The script automatically checks for and installs the necessary `ImportExcel` module, simplifying the setup process for new users.
+* **Robust Date Filtering:** The filtering mechanism reliably generates reports for the entire specified date range, correctly handling the end date to include all events on that day (also exits after specified date range).
+* **Data Mapping:** The script automatically pairs entry and exit events with corresponding car park names and device names for a comprehensive report.
+* **Excel Output:** All processed data is exported to a single, organized Excel file.
 
 ## How to Use
 
-### 1. File Setup
+### 1. File Preparation
 
-Ensure the following files are located in the same folder:
+Ensure the following files are in the same folder:
 - `Get-ParkingReport.ps1` (this script)
-- The events file (e.g., `01_EVT_xxxx_xxxx.txt`) **- name has to be defined in the script parameters**
-- The device information file (e.g., `01_INV_xxxx_xxxx.txt`) **- name has to be defined in the script parameters**
+- The events file (e.g., `01_EVT_xxxx_xxxx.txt`)
+- The device information file (e.g., `01_INV_xxxx_xxxx.txt`)
 
 ### 2. Running the Script
 
-Open PowerShell and execute the script from its location.
+Double-click `Get-ParkingReport.ps1` or run it from a PowerShell console.
 
-#### Example 1: Using the Default Timeframe
- **If you don't specify a date, the script will use the default values set within the file (01.01.2000-01.01.2045).**
-Open powershell and execute **Get-ParkingReport.ps1**
-
-#### Example 2: Specifying a Custom Timeframe
- **To generate a report for a specific period, use the -startDate and -endDate parameters.**
-Open powershell and execute **Get-ParkingReport.ps1 -startDate "DD.MM.YYYY hh:mm:ss" -endDate "DD.MM.YYYY hh:mm:ss"**
-The script will run and generate a file named report_parking.xlsx in the same directory.
+- **Initial Run:** The first time you run it, the script may prompt you to install the required `ImportExcel` module. Confirm the installation by pressing `Y` and `Enter`.
+- **GUI Usage:** A graphical window will appear. Follow these steps:
+    1.  Select the **input folder** where your `.txt` data files are located.
+    2.  Choose the desired **start** and **end dates/times** for the report.
+    3.  Specify the **output file** location and name.
+    4.  Click the **"Generate Report"** button to start the process.
+- **Process Feedback:** You will see the progress of the export displayed in the PowerShell console window. Upon successful completion, the GUI will automatically close.
