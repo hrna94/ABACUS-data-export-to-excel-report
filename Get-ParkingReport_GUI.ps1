@@ -1,18 +1,4 @@
-﻿# --- HOW TO RUN THE SCRIPT ---
-# Save the code as a .ps1 file and run it directly from PowerShell.
-# The script will automatically open a graphical interface.
-# No command-line parameters are needed.
-
-function Get-ParkingReport {
-    param(
-        [string]$eventFile,
-        [string]$deviceFile,
-        [string]$outputFile,
-        [datetime]$startDate,
-        [datetime]$endDate
-    )
-
-# Check if the ImportExcel module is available. If not, install it.
+﻿# --- AUTOMATICKÁ KONTROLA A INSTALACE MODULU ---
 Write-Host "Checking for required module 'ImportExcel'..." -ForegroundColor Yellow
 
 $requiredModule = "ImportExcel"
@@ -37,6 +23,16 @@ if (-not $moduleIsInstalled) {
 }
 Write-Host "Module '$requiredModule' is available. Continuing with the script." -ForegroundColor Green
 
+# --- HLAVNÍ FUNKCE SKRIPTU ---
+# Tato funkce obsahuje veškerou logiku pro zpracování dat a export.
+function Get-ParkingReport {
+    param(
+        [string]$eventFile,
+        [string]$deviceFile,
+        [string]$outputFile,
+        [datetime]$startDate,
+        [datetime]$endDate
+    )
     # --- CORE SCRIPT LOGIC STARTS HERE ---
     Write-Host "--- Starting script ---"
     
@@ -186,18 +182,22 @@ Write-Host "Module '$requiredModule' is available. Continuing with the script." 
     # --- EXPORT TO XLSX ---
     Write-Host "Found $($completedTrips.Count) complete records to export."
     if ($completedTrips.Count -gt 0) {
-        $finalReport = $completedTrips | Sort-Object 'Entry Time', 'ISO-Card number'
-        
-        # Export main table to the first sheet
-        $finalReport | Export-Excel -Path $outputFile -AutoSize -TableName "ParkingData" -WorksheetName "Parking Report" -TableStyle None
-
         # --- Generate and export summary table ---
+        Write-Host "Generating summary table..." -ForegroundColor Yellow
+        
+        # Filter completed records for summary
         $summary = $allTrips | Where-Object { $_.'Entry Time' -ge $startDate -and $_.'Entry Time' -le $endDate }
+
+        # Group entry events and count them
         $entrySummary = $summary | Where-Object { $_.'Entry Time' -ne $null } | Group-Object 'CarPark Name (Entry)', 'Device Name (Entry)' | Select-Object Name, @{N='Entries'; E={$_.Count}}
+
+        # Group exit events and count them
         $exitSummary = $summary | Where-Object { $_.'Exit Time' -ne $null } | Group-Object 'CarPark Name (Exit)', 'Device Name (Exit)' | Select-Object Name, @{N='Exits'; E={$_.Count}}
 
+        # Combine all devices and create a summary table
         $joinedSummary = @()
         $allDevices = ($entrySummary.Name + $exitSummary.Name | Select-Object -Unique).Trim()
+        
         $allDevices | ForEach-Object {
             $deviceName = $_
             $entries = ($entrySummary | Where-Object Name -eq $deviceName).Entries
@@ -209,15 +209,29 @@ Write-Host "Module '$requiredModule' is available. Continuing with the script." 
                 'Total Exits' = [int]$exits
             }
         }
+        
+        # Calculate total entries and exits across all devices
+        $totalEntries = ($joinedSummary | Measure-Object -Sum 'Total Entries').Sum
+        $totalExits = ($joinedSummary | Measure-Object -Sum 'Total Exits').Sum
 
-        # Export summary table to a second sheet
-        $joinedSummary | Export-Excel -Path $outputFile -WorksheetName "Summary" -Append -AutoSize -TableName "Summary" -TableStyle None
+        # Add the totals row to the summary table
+        $joinedSummary += [PSCustomObject]@{
+            'Device/Car Park' = "SUMA celkem";
+            'Total Entries' = [int]$totalEntries;
+            'Total Exits' = [int]$totalExits
+        }
+
+        # Export the summary table to the first sheet
+        $joinedSummary | Export-Excel -Path $outputFile -WorksheetName "Summary" -AutoSize -TableName "Summary" -TableStyle None
+
+        # Export main table to the second sheet (using -Append)
+        $finalReport = $completedTrips | Sort-Object 'Entry Time', 'ISO-Card number'
+        $finalReport | Export-Excel -Path $outputFile -WorksheetName "Parking Report" -Append -AutoSize -TableName "ParkingData" -TableStyle None
         
         Write-Host "Done! Report successfully generated to: $outputFile" -ForegroundColor Green
     } else {
         Write-Host "WARNING: No records found for export. Output file was not created." -ForegroundColor Yellow
     }
-
     Write-Host "--- Script finished ---"
 }
 
@@ -351,6 +365,18 @@ $buttonRun.Add_Click({
         Write-Host "Script has been started..."
         $eventFile = Get-ChildItem -Path $inputFolder -Filter "*_EVT_*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
         $deviceFile = Get-ChildItem -Path $inputFolder -Filter "*_INV_*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+
+        # Check if the output file is already open
+        if (Test-Path $outputFile) {
+            try {
+                $fileHandle = [System.IO.File]::OpenWrite($outputFile)
+                $fileHandle.Dispose()
+            } catch {
+                # This is the specific error for a locked file
+                [System.Windows.Forms.MessageBox]::Show("The output file is currently open in Excel. Please close it before running the report.", "Error: File Locked", "OK", "Error")
+                return
+            }
+        }
 
         Get-ParkingReport -eventFile $eventFile -deviceFile $deviceFile -outputFile $outputFile -startDate $startDate -endDate $endDate
         [System.Windows.Forms.MessageBox]::Show("Report was successfully generated!", "Success", "OK", "Information")

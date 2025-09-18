@@ -1,7 +1,7 @@
 # PowerShell Parking Report Generator
 
-This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport. 
-It processes raw Events (EVT) and a System Inventory List (INV) files.
+This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport.
+ It processes raw Events (EVT) and a System Inventory List (INV) files.
 
 ## Key Features
 
@@ -9,7 +9,10 @@ It processes raw Events (EVT) and a System Inventory List (INV) files.
 * **Automatic Installation:** The script automatically checks for and installs the necessary `ImportExcel` module, simplifying the setup process for new users.
 * **Robust Date Filtering:** The filtering mechanism reliably generates reports for the entire specified date range, correctly handling the end date to include all events on that day (also exits after specified date range).
 * **Data Mapping:** The script automatically pairs entry and exit events with corresponding car park names and device names for a comprehensive report.
-* **Excel Output:** All processed data is exported to a single, organized Excel file.
+* **Advanced Excel Output:** The script now creates a single `.xlsx` file with two worksheets:
+    * **Summary:** Provides a clear overview of total entries and exits per device within the selected date range.
+    * **Parking Report:** Contains the original, detailed list of all entry and exit events.
+* **Improved Error Handling:** The script now detects and provides a specific, clear error message if the output file is open.
 
 ## How to Use
 
@@ -24,10 +27,10 @@ Ensure the following files are in the same folder:
 
 Double-click `Get-ParkingReport.ps1` or run it from a PowerShell console.
 
-- **Initial Run:** The first time you run it, the script may prompt you to install the required `ImportExcel` module. Confirm the installation by pressing `Y` and `Enter`.
-- **GUI Usage:** A graphical window will appear. Follow these steps:
+-   **Initial Run:** The first time you run it, the script may prompt you to install the required `ImportExcel` module. Confirm the installation by pressing `Y` and `Enter`.
+-   **GUI Usage:** A graphical window will appear. Follow these steps:
     1.  Select the **input folder** where your `.txt` data files are located.
     2.  Choose the desired **start** and **end dates/times** for the report.
     3.  Specify the **output file** location and name.
     4.  Click the **"Generate Report"** button to start the process.
-- **Process Feedback:** You will see the progress of the export displayed in the PowerShell console window. Upon successful completion, the GUI will automatically close.
+-   **Process Feedback:** You will see the progress of the export displayed in the PowerShell console window. Upon successful completion, the GUI will automatically close. If an error occurs (eg. if the file is open), a clear error message will be shown.
