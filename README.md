@@ -1,12 +1,13 @@
 # PowerShell Parking Report Generator
 
-This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport. It processes raw Events (EVT) and a System Inventory List (INV) files.
+This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport. It processes **all** raw Events (EVT) and System Inventory List (INV) files found in the specified folder.
 
 ## Key Features
 
 * **GUI:** The script now features a user-friendly graphical interface, eliminating the need for command-line parameters.
 * **Automatic Installation:** The script automatically checks for and installs the necessary `ImportExcel` module, simplifying the setup process for new users.
 * **Flexible Date Filtering:** The filtering mechanism reliably generates reports for a specified date range, but now you can also leave the date/time fields unchecked to process **all data from the entire period** contained within the file.
+* **Comprehensive Data Processing:** The script processes **all** EVT and INV files in the selected folder, combining data from multiple days/periods into a single comprehensive report.
 * **Data Mapping:** The script automatically pairs entry and exit events with corresponding car park names and device names for a comprehensive report.
 * **Advanced Excel Output:** The script now creates a single `.xlsx` file with two worksheets:
     * **Summary:** Provides a clear overview of total entries and exits per device within the selected date range.
@@ -20,8 +21,10 @@ This PowerShell script automatically generates clear and organized reports in Ex
 Ensure the following files are in the same folder:
 
 -   `Get-ParkingReport.ps1` (this script)
--   The events file (e.g., `01_EVT_xxxx_xxxx.txt`)
--   The device information file (e.g., `01_INV_xxxx_xxxx.txt`)
+-   **All** events files (e.g., `01_EVT_xxxx_xxxx.txt`, `02_EVT_xxxx_xxxx.txt`, etc.)
+-   **All** device information files (e.g., `01_INV_xxxx_xxxx.txt`, `02_INV_xxxx_xxxx.txt`, etc.)
+
+**Note:** The script will automatically process all EVT and INV files found in the folder, combining data from multiple days/periods.
 
 ### 2. Running the Script
 

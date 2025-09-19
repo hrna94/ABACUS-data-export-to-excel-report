@@ -27,20 +27,19 @@ Write-Host "Module '$requiredModule' is available. Continuing with the script." 
 # This function contain the logic to process data and export.
 function Get-ParkingReport {
     param(
-        [string]$eventFile,
-        [string]$deviceFile,
+        [string]$inputFolder,
         [string]$outputFile,
         [datetime]$startDate,
         [datetime]$endDate
     )
     # --- CORE SCRIPT LOGIC STARTS HERE ---
     Write-Host "--- Starting script ---"
-    
-    if (-not (Test-Path $eventFile)) {
-        Write-Host "ERROR: Input file not found at path: $eventFile" -ForegroundColor Red
+
+    if (-not (Test-Path $inputFolder)) {
+        Write-Host "ERROR: Input folder not found at path: $inputFolder" -ForegroundColor Red
         return
     }
-    Write-Host "Input file found: $eventFile" -ForegroundColor Green
+    Write-Host "Input folder found: $inputFolder" -ForegroundColor Green
 
     # --- PROCESSING ---
     $ticketTypes = @{
@@ -51,44 +50,55 @@ function Get-ParkingReport {
     $openEntries = @{}
     $allTrips = [System.Collections.Generic.List[object]]::new()
 
-    # Load and process device data from INV file
-    Write-Host "--- Loading device data from $deviceFile ---"
+    # Load and process device data from ALL INV files
+    Write-Host "--- Processing INV files... ---"
+    $deviceFiles = Get-ChildItem -Path $inputFolder -Filter "*_INV_*.txt" | Sort-Object LastWriteTime
     $deviceLookup = @{}
-    Get-Content $deviceFile | Where-Object { $_.StartsWith("P;") } | ForEach-Object {
-        $fields = $_.Split(';')
-        if ($fields.Count -ge 5 -and -not [string]::IsNullOrEmpty($fields[4])) {
-            $deviceNumber = $fields[4]
-            $carParkName = $fields[2]
-            $deviceName = $fields[5]
 
-            $deviceLookup[$deviceNumber] = [PSCustomObject]@{
-                CarParkName = $carParkName
-                DeviceName = $deviceName
-            }
-        }
-    }
-    Write-Host "Found $($deviceLookup.Count) devices to map."
+    foreach ($deviceFile in $deviceFiles) {
+        Get-Content $deviceFile.FullName | Where-Object { $_.StartsWith("P;") } | ForEach-Object {
+            $fields = $_.Split(';')
+            if ($fields.Count -ge 5 -and -not [string]::IsNullOrEmpty($fields[4])) {
+                $deviceNumber = $fields[4]
+                $carParkName = $fields[2]
+                $deviceName = $fields[5]
 
-    # Process ALL event data from EVT file without initial filtering
-    Write-Host "--- Loading all relevant event (186) data from $eventFile ---"
-    $events = Get-Content $eventFile | Where-Object { $_.StartsWith("P;") } | ForEach-Object {
-        $fields = $_.Split(';')
-        if ($fields.Count -ge 14 -and $fields[6] -eq '186') {
-            try {
-                $eventTime = [datetime]::ParseExact($fields[5], 'dd.MM.yyyy HH:mm:ss', $null)
-                [PSCustomObject]@{
-                    DeviceNumber  = $fields[3]
-                    EventType     = $fields[7]
-                    EventTime     = $eventTime
-                    CardNumber    = $fields[9]
-                    TicketTypeRaw = $fields[13]
+                # Newer files override older entries (sorted by LastWriteTime)
+                $deviceLookup[$deviceNumber] = [PSCustomObject]@{
+                    CarParkName = $carParkName
+                    DeviceName = $deviceName
                 }
-            } catch {
-                Write-Warning "Skipped a record due to date format error: $($fields[5])"
             }
         }
     }
-    Write-Host "Found a total of $($events.Count) relevant events (type 186)."
+    Write-Host "Found $($deviceFiles.Count) INV files with total of $($deviceLookup.Count) devices to map."
+
+    # Process ALL event data from ALL EVT files without initial filtering
+    Write-Host "--- Processing EVT files... ---"
+    $eventFiles = Get-ChildItem -Path $inputFolder -Filter "*_EVT_*.txt" | Sort-Object LastWriteTime
+    $events = @()
+
+    foreach ($eventFile in $eventFiles) {
+        $fileEvents = Get-Content $eventFile.FullName | Where-Object { $_.StartsWith("P;") } | ForEach-Object {
+            $fields = $_.Split(';')
+            if ($fields.Count -ge 14 -and $fields[6] -eq '186') {
+                try {
+                    $eventTime = [datetime]::ParseExact($fields[5], 'dd.MM.yyyy HH:mm:ss', $null)
+                    [PSCustomObject]@{
+                        DeviceNumber  = $fields[3]
+                        EventType     = $fields[7]
+                        EventTime     = $eventTime
+                        CardNumber    = $fields[9]
+                        TicketTypeRaw = $fields[13]
+                    }
+                } catch {
+                    Write-Warning "Skipped a record due to date format error: $($fields[5])"
+                }
+            }
+        }
+        $events += $fileEvents
+    }
+    Write-Host "Found $($events.Count) events in $($eventFiles.Count) EVT files (type 186)."
     
     if ($events.Count -eq 0) {
         Write-Host "No relevant events found. Script is ending."
@@ -375,8 +385,22 @@ $buttonRun.Add_Click({
     $form.Enabled = $false
     try {
         Write-Host "Script has been started..."
-        $eventFile = Get-ChildItem -Path $inputFolder -Filter "*_EVT_*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
-        $deviceFile = Get-ChildItem -Path $inputFolder -Filter "*_INV_*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+
+        # Check for EVT and INV files
+        $eventFiles = Get-ChildItem -Path $inputFolder -Filter "*_EVT_*.txt"
+        $deviceFiles = Get-ChildItem -Path $inputFolder -Filter "*_INV_*.txt"
+
+        if ($eventFiles.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No EVT files found in the selected folder.", "Error", "OK", "Error")
+            return
+        }
+
+        if ($deviceFiles.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No INV files found in the selected folder.", "Error", "OK", "Error")
+            return
+        }
+
+        Write-Host "Found $($eventFiles.Count) EVT files and $($deviceFiles.Count) INV files"
 
         # Check if the output file is already open
         if (Test-Path $outputFile) {
@@ -390,7 +414,7 @@ $buttonRun.Add_Click({
             }
         }
 
-        Get-ParkingReport -eventFile $eventFile -deviceFile $deviceFile -outputFile $outputFile -startDate $startDate -endDate $endDate
+        Get-ParkingReport -inputFolder $inputFolder -outputFile $outputFile -startDate $startDate -endDate $endDate
         [System.Windows.Forms.MessageBox]::Show("Report was successfully generated!", "Success", "OK", "Information")
     }
     catch {

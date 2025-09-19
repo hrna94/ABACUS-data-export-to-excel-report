@@ -7,7 +7,9 @@ This version of the script is designed to be run directly from the **PowerShell*
 Ensure the following files are in the same folder:
 
 * `Get-ParkingReport_CLI.ps1`
-* Your `.txt` data files (e.g., `xx_EVT_xxxx_xxxx.txt` and `xx_INV_xxxx_xxxx.txt`).
+* **All** your `.txt` data files (e.g., `xx_EVT_xxxx_xxxx.txt` and `xx_INV_xxxx_xxxx.txt`).
+
+**Important:** The script will automatically process **all** EVT and INV files found in the specified folder, combining data from multiple days/periods into a single report.
 
 #### 2. Running from PowerShell
 
@@ -27,5 +29,6 @@ Use the -StartDate and -EndDate parameters to define a specific period. The date
 
 ```PowerShell
 .\Get-ParkingReport.ps1 -InputFolder "C:\Users\username\data" -OutputFile "C:\Users\username\Desktop\parking_report_january.xlsx" -StartDate "01.01.2024 00:00:00" -EndDate "31.01.2024 23:59:59"
-The script will automatically find and use the newest EVT and INV files in the input folder, so you don't need to change their names. The progress and any potential errors will be shown directly in the PowerShell console.
 ```
+
+The script will automatically find and process **all** EVT and INV files in the input folder, combining data from multiple periods. The progress and any potential errors will be shown directly in the PowerShell console.
