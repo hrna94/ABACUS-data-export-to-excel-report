@@ -17,8 +17,7 @@ Sub SetupSummaryUI()
     ' Format the UI area
     FormatUIArea ws
 
-    MsgBox "Summary UI has been set up successfully!" & vbCrLf & _
-           "Device dropdowns populated with actual data from Parking Report.", vbInformation, "Setup Complete"
+    ' UI setup completed - no message box during automated export
 End Sub
 
 ' Clear existing controls
@@ -162,35 +161,28 @@ Private Sub CreateInputFields(ws As Worksheet)
     ws.Range("F5").NumberFormat = "dd.mm.yyyy hh:mm"
 End Sub
 
-' Create action buttons - positioned at X: 800
+' Create action buttons - positioned at X: 700
 Private Sub CreateButtons(ws As Worksheet)
-    ' Analyze button - positioned at X: 800
+    ' Analyze button - positioned at X: 700
     Dim btnAnalyze As Shape
-    Set btnAnalyze = ws.Shapes.AddFormControl(xlButtonControl, 800, 65, 100, 25)
+    Set btnAnalyze = ws.Shapes.AddFormControl(xlButtonControl, 700, 65, 100, 25)
     btnAnalyze.Name = "UI_AnalyzeButton"
     btnAnalyze.TextFrame.Characters.Text = "Run Analysis"
     btnAnalyze.OnAction = "RunParkingAnalysis"
 
-    ' Clear Results button - positioned at X: 800
-    Dim btnClear As Shape
-    Set btnClear = ws.Shapes.AddFormControl(xlButtonControl, 800, 95, 100, 25)
-    btnClear.Name = "UI_ClearButton"
-    btnClear.TextFrame.Characters.Text = "Clear Results"
-    btnClear.OnAction = "ClearAnalysisResults"
-
-    ' Debug button - positioned at X: 800
-    Dim btnDebug As Shape
-    Set btnDebug = ws.Shapes.AddFormControl(xlButtonControl, 800, 125, 100, 25)
-    btnDebug.Name = "UI_DebugButton"
-    btnDebug.TextFrame.Characters.Text = "Debug Data"
-    btnDebug.OnAction = "DebugDataMapping"
-
-    ' Help button - positioned at X: 800
+    ' Help button - positioned at X: 700
     Dim btnHelp As Shape
-    Set btnHelp = ws.Shapes.AddFormControl(xlButtonControl, 800, 155, 80, 25)
+    Set btnHelp = ws.Shapes.AddFormControl(xlButtonControl, 700, 95, 80, 25)
     btnHelp.Name = "UI_HelpButton"
     btnHelp.TextFrame.Characters.Text = "Help"
     btnHelp.OnAction = "ShowHelp"
+
+    ' Clear button - positioned at X: 700
+    Dim btnClear As Shape
+    Set btnClear = ws.Shapes.AddFormControl(xlButtonControl, 700, 125, 80, 25)
+    btnClear.Name = "UI_ClearButton"
+    btnClear.TextFrame.Characters.Text = "Clear"
+    btnClear.OnAction = "ClearAnalysis"
 End Sub
 
 ' Format the UI area
@@ -200,67 +192,16 @@ Private Sub FormatUIArea(ws As Worksheet)
     ws.Range("E4:E5,E8,E11:E12").Font.Bold = False
 
     ' Add borders around UI area
-    ws.Range("E1:G14").Borders.LineStyle = xlContinuous
-    ws.Range("E1:G14").Borders.Weight = xlThin
+    ws.Range("E1:F14").Borders.LineStyle = xlContinuous
+    ws.Range("E1:F14").Borders.Weight = xlThin
 
     ' Auto-fit columns
-    ws.Columns("E:G").AutoFit
+    ws.Columns("E:F").AutoFit
 
     ' Set background color for UI area
-    ws.Range("E1:G14").Interior.Color = RGB(240, 248, 255)
+    ws.Range("E1:F14").Interior.Color = RGB(240, 248, 255)
 End Sub
 
-' Debug function to check data mapping
-Sub DebugDataMapping()
-    Dim dataWs As Worksheet
-    Dim msg As String
-    Dim lastRow As Long
-
-    Set dataWs = ThisWorkbook.Worksheets("Parking Report")
-    lastRow = dataWs.Cells(dataWs.Rows.Count, 1).End(xlUp).Row
-
-    msg = "DATA MAPPING DEBUG:" & vbCrLf & vbCrLf
-    msg = msg & "Total rows in Parking Report: " & lastRow & vbCrLf & vbCrLf
-    msg = msg & "Headers found:" & vbCrLf
-    msg = msg & "A1: " & dataWs.Cells(1, 1).Value & vbCrLf
-    msg = msg & "B1: " & dataWs.Cells(1, 2).Value & vbCrLf
-    msg = msg & "E1: " & dataWs.Cells(1, 5).Value & vbCrLf
-    msg = msg & "I1: " & dataWs.Cells(1, 9).Value & vbCrLf & vbCrLf
-    msg = msg & "Sample data from row 2:" & vbCrLf
-
-    ' Handle Excel serial date conversion
-    Dim entryTimeValue As Variant
-    entryTimeValue = dataWs.Cells(2, 2).Value
-    If IsNumeric(entryTimeValue) Then
-        msg = msg & "Entry Time (B2) Raw: " & entryTimeValue & vbCrLf
-        msg = msg & "Entry Time (B2) Converted: " & Format(CDate(entryTimeValue), "dd.mm.yyyy hh:mm:ss") & vbCrLf
-    Else
-        msg = msg & "Entry Time (B2): " & entryTimeValue & vbCrLf
-    End If
-
-    msg = msg & "Entry Device (E2): " & dataWs.Cells(2, 5).Value & vbCrLf
-    msg = msg & "Exit Device (I2): " & dataWs.Cells(2, 9).Value & vbCrLf & vbCrLf
-
-    ' Show date range from data
-    msg = msg & "DATA DATE RANGE:" & vbCrLf
-    Dim minDate As Date, maxDate As Date
-    minDate = CDate(dataWs.Cells(2, 2).Value)
-    maxDate = minDate
-
-    Dim i As Long
-    For i = 2 To Application.Min(lastRow, 10) ' Check first 10 rows
-        If IsNumeric(dataWs.Cells(i, 2).Value) Then
-            Dim currentDate As Date
-            currentDate = CDate(dataWs.Cells(i, 2).Value)
-            If currentDate < minDate Then minDate = currentDate
-            If currentDate > maxDate Then maxDate = currentDate
-        End If
-    Next i
-
-    msg = msg & "Sample date range: " & Format(minDate, "dd.mm.yyyy") & " - " & Format(maxDate, "dd.mm.yyyy")
-
-    MsgBox msg, vbInformation, "Debug Info"
-End Sub
 
 ' Main analysis function
 Sub RunParkingAnalysis()
@@ -271,7 +212,7 @@ Sub RunParkingAnalysis()
     Set dataWs = ThisWorkbook.Worksheets("Parking Report")
 
     ' Clear previous results
-    ClearAnalysisResults
+    ClearResults
 
     ' Get parameters from UI
     Dim startDateTime As Date
@@ -320,7 +261,7 @@ Sub RunParkingAnalysis()
     ' Display results
     DisplayResults ws, results, startDateTime, endDateTime, intervalType
 
-    MsgBox "Analysis completed! Found " & results.Count & " result groups.", vbInformation
+    ' Analysis completed - results displayed in worksheet
 End Sub
 
 ' Main data analysis function
@@ -368,9 +309,9 @@ Private Function AnalyzeData(dataWs As Worksheet, startDate As Date, endDate As 
                 entryDevice = Trim(CStr(dataWs.Cells(i, 5).Value)) ' Column E - Device Name (Entry)
                 exitDevice = Trim(CStr(dataWs.Cells(i, 9).Value))  ' Column I - Device Name (Exit)
 
-                ' Handle empty exit device (ongoing parking)
+                ' Handle empty exit device (no exit recorded)
                 If exitDevice = "" Or exitDevice = "N/A" Or IsEmpty(dataWs.Cells(i, 9).Value) Then
-                    exitDevice = "[Still Parked]"
+                    exitDevice = "No Exit Recorded"
                 End If
 
                 ' Apply device filters
@@ -494,6 +435,12 @@ Private Sub DisplayResults(ws As Worksheet, results As Collection, startDate As 
         End If
 
         ws.Range("H" & (startRow + i - 1)).Value = item("Count")
+
+        ' Make "No Exit Recorded" bold
+        If ws.Range("G" & (startRow + i - 1)).Value = "No Exit Recorded" Then
+            ws.Range("G" & (startRow + i - 1)).Font.Bold = True
+        End If
+
         totalCount = totalCount + item("Count")
     Next i
 
@@ -517,20 +464,16 @@ Private Sub DisplayResults(ws As Worksheet, results As Collection, startDate As 
         ws.Range("E" & startRow).Font.Italic = True
         ws.Range("E" & (startRow + 1)).Value = "Try adjusting the date range or device filters."
         ws.Range("E" & (startRow + 1)).Font.Italic = True
-        ws.Range("E" & (startRow + 2)).Value = "Use Debug Data button to check available date range."
-        ws.Range("E" & (startRow + 2)).Font.Italic = True
     End If
 End Sub
 
-' Clear analysis results
-Sub ClearAnalysisResults()
+' Clear analysis results (internal function)
+Private Sub ClearResults()
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Worksheets("Summary")
 
     ' Clear results area (from row 16 down)
     ws.Range("E16:J" & ws.Rows.Count).Clear
-
-    MsgBox "Analysis results cleared.", vbInformation
 End Sub
 
 ' Show help information
@@ -550,10 +493,20 @@ Sub ShowHelp()
     helpText = helpText & "- Shows traffic flow between entry and exit devices" & vbCrLf
     helpText = helpText & "- Grouped by selected time intervals" & vbCrLf
     helpText = helpText & "- Includes total count for the period" & vbCrLf & vbCrLf
-    helpText = helpText & "DEBUG:" & vbCrLf
-    helpText = helpText & "- Use 'Debug Data' button to check available date range" & vbCrLf & vbCrLf
     helpText = helpText & "EXAMPLE:" & vbCrLf
     helpText = helpText & "- From: 01.08.2025 00:00, To: 31.08.2025 23:59, Interval: Daily"
 
     MsgBox helpText, vbInformation, "Parking Analysis Tool Help"
+End Sub
+
+' Clear analysis results
+Sub ClearAnalysis()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Summary")
+
+    ' Use the same clearing logic as the analysis function
+    ' Clear results area (from row 16 down, columns E to J)
+    ws.Range("E16:J" & ws.Rows.Count).Clear
+
+    MsgBox "Analysis results have been cleared.", vbInformation, "Clear Successful"
 End Sub

@@ -1,39 +1,187 @@
 # PowerShell Parking Report Generator
 
-This PowerShell script automatically generates clear and organized reports in Excel (.xlsx) format from raw data from an ABACUS DataExport. It processes **all** raw Events (EVT) and System Inventory List (INV) files found in the specified folder.
+Advanced PowerShell solution for generating comprehensive parking reports from ABACUS DataExport files with integrated VBA analysis tools.
 
 ## Key Features
 
-* **GUI:** The script now features a user-friendly graphical interface, eliminating the need for command-line parameters.
-* **Automatic Installation:** The script automatically checks for and installs the necessary `ImportExcel` module, simplifying the setup process for new users.
-* **Flexible Date Filtering:** The filtering mechanism reliably generates reports for a specified date range, but now you can also leave the date/time fields unchecked to process **all data from the entire period** contained within the file.
-* **Comprehensive Data Processing:** The script processes **all** EVT and INV files in the selected folder, combining data from multiple days/periods into a single comprehensive report.
-* **Data Mapping:** The script automatically pairs entry and exit events with corresponding car park names and device names for a comprehensive report.
-* **Advanced Excel Output:** The script now creates a single `.xlsx` file with two worksheets:
-    * **Summary:** Provides a clear overview of total entries and exits per device within the selected date range.
-    * **Parking Report:** Contains the original, detailed list of all entry and exit events.
-* **Improved Error Handling:** The script now detects and provides a specific, clear error message if the output file is open.
+- **️ User-Friendly GUI:** Simple graphical interface - just click and generate
+- ** VBA Analysis Tool:** Interactive Excel dashboard for advanced data analysis
+- ** Automatic Processing:** Processes ALL EVT and INV files in folder automatically
+- ** Flexible Date Filtering:** Optional time range filters or process all data
+- ** Dual Output Format:** Summary overview + detailed parking events
+- ** Auto Installation:** ImportExcel module installed automatically
+- ** Smart Error Handling:** Clear error messages and robust file processing
 
-## How to Use
+## Quick Start
 
-### 1. File Preparation
+### For End Users (GUI)
 
-Ensure the following files are in the same folder:
+1. **Double-click:** `Run-ParkingReport-GUI.bat`
+2. **Select:** Your data folder (containing EVT and INV files)
+3. **Choose:** Output location (.xlsm recommended for VBA features)
+4. **Optional:** Set date filters or leave blank for all data
+5. **Click:** "Generate Report"
 
--   `Get-ParkingReport.ps1` (this script)
--   **All** events files (e.g., `01_EVT_xxxx_xxxx.txt`, `02_EVT_xxxx_xxxx.txt`, etc.)
--   **All** device information files (e.g., `01_INV_xxxx_xxxx.txt`, `02_INV_xxxx_xxxx.txt`, etc.)
+### For Advanced Users (CLI)
 
-**Note:** The script will automatically process all EVT and INV files found in the folder, combining data from multiple days/periods.
+```powershell
+.\scripts\Get-ParkingReport_CLI.ps1 -InputFolder "C:\Data" -OutputFile "C:\Reports\report.xlsm"
+```
 
-### 2. Running the Script
+## Project Structure
 
-Double-click `Get-ParkingReport.ps1` or run it from a PowerShell console.
+```
+Parking Report Generator
+├── Run-ParkingReport-GUI.bat     # Main launcher
+├── README.md                     # This documentation
+├── scripts/                      # PowerShell scripts
+│├── Get-ParkingReport_GUI.ps1    # GUI version
+ ├── Get-ParkingReport_CLI.ps1    # Command-line version
+│├── Add-VBAToExcel.ps1           # VBA integration
+│└── ParkingAnalysis_VBA.bas      # Excel analysis toolkit
+└── docs/                         # Language variants (CZ/EN)
+ └── Excel_Macros_Setup_Guide*.md # Macro setup (multiple languages)
+```
 
-* **Initial Run:** The first time you run it, the script may prompt you to install the required `ImportExcel` module. Confirm the installation by pressing `Y` and `Enter`.
-* **GUI Usage:** A graphical window will appear. Follow these steps:
-    1.  Select the **input folder** where your `.txt` data files are located.
-    2.  Voluntarily **check** and select the desired **start** and **end dates/times** for the report. If you leave the boxes unchecked, the script will process all available data.
-    3.  Specify the **output file** location and name.
-    4.  Click the **"Generate Report"** button to start the process.
-* **Process Feedback:** You will see the progress of the export displayed in the PowerShell console window. Upon successful completion, a confirmation message will appear.
+## Output Features
+
+### Excel Report (.xlsm)
+
+- **Summary Sheet:** Overview with entry/exit counts per device
+- **Parking Report Sheet:** Detailed event log with timestamps
+- **VBA Analysis Tool:** Interactive dashboard for advanced filtering
+
+### VBA Analysis Capabilities
+
+- ** Time Period Filtering:** Custom date/time ranges
+- **️ Analysis Intervals:** Hourly, daily, weekly, monthly grouping
+- ** Device-Specific Filtering:** Entry/exit point analysis
+- ** Traffic Flow Analysis:** Entry → Exit device patterns
+- ** Built-in Help:** Integrated user documentation
+
+## Security & Macros
+
+When opening the generated `.xlsm` file, Excel will show a security warning:
+
+```
+SECURITY WARNING Macros have been disabled. [Enable Content]
+```
+
+**→ Click "Enable Content"** to activate the VBA analysis features.
+
+### Permanent Macro Settings (Optional)
+1. **File** → **Options** → **Trust Center**
+2. **Trust Center Settings** → **Macro Settings**
+3. Select: **"Disable all macros with notification"**
+
+## CLI Usage (Advanced)
+
+### Prerequisites
+Open PowerShell and navigate to the project folder. If you encounter execution policy issues:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Parameters
+- **-InputFolder** (required): Path to folder containing EVT and INV files
+- **-OutputFile** (required): Path for output .xlsm file
+- **-StartDate** (optional): Start date in format "dd.MM.yyyy HH:mm:ss"
+- **-EndDate** (optional): End date in format "dd.MM.yyyy HH:mm:ss"
+
+### Basic Export
+```powershell
+.\scripts\Get-ParkingReport_CLI.ps1 -InputFolder "C:\ParkingData" -OutputFile "C:\Reports\report.xlsm"
+```
+
+### Filtered Export (August 2025)
+```powershell
+.\scripts\Get-ParkingReport_CLI.ps1 -InputFolder "C:\Data" -OutputFile "C:\Reports\august.xlsm" -StartDate "01.08.2025 00:00:00" -EndDate "31.08.2025 23:59:59"
+```
+
+## System Requirements
+
+- **Windows:** 10/11 or Windows Server 2016+
+- **PowerShell:** 5.0+ (included in Windows 10/11)
+- **Excel:** 2016+ (for .xlsm support and VBA features)
+- **ImportExcel Module:** Installed automatically
+
+### Installation & Setup
+1. **Extract all files** to a folder on your computer
+2. **Ensure all files** are in correct structure (see Project Structure above)
+3. **Run once:** Double-click `Run-ParkingReport-GUI.bat`
+
+## Data File Requirements
+
+### Input Files (in data folder):
+- **Event Files:** `*_EVT_*.txt` - parking events data
+- **Inventory Files:** `*_INV_*.txt` - device mapping information
+
+## VBA Analysis Tool Guide
+
+### Running Analysis
+1. Open the generated `.xlsm` file
+2. Enable macros when prompted
+3. Go to "Summary" worksheet
+4. Use the analysis controls to:
+   - Set time period filters
+   - Choose analysis interval (hourly/daily/weekly/monthly)
+   - Filter by specific entry/exit devices
+   - Run Analysis
+
+### Analysis Features
+- **No Exit Recorded:** Highlighted in **bold** for incomplete trips
+- **Device Combinations:** Shows traffic flow between entry/exit points
+- **Time-based Grouping:** Flexible interval analysis
+- **Total Counts:** Comprehensive reporting with summaries
+
+## Troubleshooting
+
+### Common Issues
+**Macros not working:**
+- Ensure you clicked "Enable Content"
+- Restart Excel if needed
+
+**GUI not responding:**
+- Check if all script files are in `/scripts` folder
+- Verify file permissions
+
+**CLI execution errors:**
+- Run PowerShell as administrator
+- Check ExecutionPolicy settings
+
+**No data in report:**
+- Verify EVT and INV files exist in input folder
+- Check date filters aren't too restrictive
+- Ensure files contain valid data
+
+### Error Messages
+The tool provides clear English error messages for:
+- **Success:** "Export completed successfully!"
+-  **Warning:** "VBA integration failed" or "VBA file not found"
+- **Error:** "No records found" or file access issues
+
+## Advanced Macro Configuration
+
+If you frequently work with .xlsm files and want to avoid the security warning each time:
+
+### Option 1: Trust Center Settings
+1. Open Excel → **File** → **Options**
+2. Go to **Trust Center** → **Trust Center Settings**
+3. Select **Macro Settings**
+4. Choose: **"Disable all macros with notification"** (recommended)
+5. Click **OK** to save
+
+### Option 2: Trusted Locations
+1. In Trust Center Settings, go to **Trusted Locations**
+2. Click **Add new location**
+3. Browse to the folder where you save reports
+4. Check **"Subfolders of this location are also trusted"**
+5. Click **OK**
+
+**Note:** Files in trusted locations will automatically enable macros without warnings.
+
+## About
+
+**Latest Version:** Includes VBA integration for interactive analysis
+**License:** For DESIGNA GMBH use
+**Support:** Check documentation in `/docs` folder

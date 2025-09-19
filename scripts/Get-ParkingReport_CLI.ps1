@@ -1,4 +1,14 @@
-﻿# --- AUTOMATIC MODULE CHECK & INSTALL  ---
+# --- LOAD VBA INJECTION FUNCTION ---
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$vbaFunctionPath = Join-Path $scriptPath "Add-VBAToExcel.ps1"
+if (Test-Path $vbaFunctionPath) {
+    . $vbaFunctionPath
+    Write-Host "VBA injection function loaded." -ForegroundColor Green
+} else {
+    Write-Host "Warning: VBA injection function not found. Excel will be exported without VBA analysis tool." -ForegroundColor Yellow
+}
+
+# --- AUTOMATIC MODULE CHECK AND INSTALLATION ---
 Write-Host "Checking for required module 'ImportExcel'..." -ForegroundColor Yellow
 
 $requiredModule = "ImportExcel"
@@ -23,8 +33,25 @@ if (-not $moduleIsInstalled) {
 }
 Write-Host "Module '$requiredModule' is available. Continuing with the script." -ForegroundColor Green
 
+# --- COMMAND LINE PARAMETERS ---
+# Defines the parameters for running the script from the command line.
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Path to the folder containing the raw EVT and INV files.")]
+    [string]$InputFolder,
+
+    [Parameter(Mandatory=$true, HelpMessage="Full path where the output Excel file will be saved.")]
+    [string]$OutputFile,
+
+    [Parameter(Mandatory=$false, HelpMessage="Start date and time for the report (e.g., '10.01.2023 08:00:00').")]
+    [datetime]$StartDate = [datetime]::MinValue,
+
+    [Parameter(Mandatory=$false, HelpMessage="End date and time for the report (e.g., '10.01.2023 18:00:00').")]
+    [datetime]$EndDate = [datetime]::MaxValue
+)
+
 # --- MAIN SCRIPT FUNCTION ---
-# This function contain the logic to process data and export.
+# This function contains all the logic for data processing and export.
 function Get-ParkingReport {
     param(
         [string]$inputFolder,
@@ -226,211 +253,84 @@ function Get-ParkingReport {
 
         # Add the totals row to the summary table
         $joinedSummary += [PSCustomObject]@{
-            'Device/Car Park' = "SUMA celkem";
+            'Device/Car Park' = "TOTAL";
             'Total Entries' = [int]$totalEntries;
             'Total Exits' = [int]$totalExits
         }
 
+        # Always export as .xlsx first for VBA injection
+        $tempXlsxFile = $outputFile -replace '\.xlsm$', '.xlsx'
+
         # Export the summary table to the first sheet
-        $joinedSummary | Export-Excel -Path $outputFile -WorksheetName "Summary" -AutoSize -TableName "Summary" -TableStyle None
+        $joinedSummary | Export-Excel -Path $tempXlsxFile -WorksheetName "Summary" -AutoSize -TableName "Summary" -TableStyle None
 
         # Export main table to the second sheet (using -Append)
         $finalReport = $completedTrips | Sort-Object 'Entry Time', 'ISO-Card number'
-        $finalReport | Export-Excel -Path $outputFile -WorksheetName "Parking Report" -Append -AutoSize -TableName "ParkingData" -TableStyle None
-        
-        Write-Host "Done! Report successfully generated to: $outputFile" -ForegroundColor Green
+        $finalReport | Export-Excel -Path $tempXlsxFile -WorksheetName "Parking Report" -Append -AutoSize -TableName "ParkingData" -TableStyle None
+
+        # Add VBA analysis tool if function is available
+        if (Get-Command "Add-VBAToExcel" -ErrorAction SilentlyContinue) {
+            $vbaFilePath = Join-Path $scriptPath "ParkingAnalysis_VBA.bas"
+            if (Test-Path $vbaFilePath) {
+
+                try {
+                    $finalOutputFile = Add-VBAToExcel -ExcelFilePath $tempXlsxFile -VBAFilePath $vbaFilePath
+                    Write-Host "Done! Report with VBA analysis tool generated to: $finalOutputFile" -ForegroundColor Green
+                    Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                } catch {
+                    Write-Host "Error during VBA integration: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "Export completed but VBA integration failed. File saved to: $tempXlsxFile" -ForegroundColor Yellow
+                    Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                }
+            } else {
+                Write-Host "Warning: VBA file not found. Report generated without analysis tool: $tempXlsxFile" -ForegroundColor Yellow
+                Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+            }
+        } else {
+            Write-Host "Done! Report successfully generated to: $tempXlsxFile" -ForegroundColor Green
+            Write-Host "Press any key to exit..." -ForegroundColor Cyan
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        }
     } else {
         Write-Host "WARNING: No records found for export. Output file was not created." -ForegroundColor Yellow
+        Write-Host "Press any key to exit..." -ForegroundColor Cyan
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     }
     Write-Host "--- Script finished ---"
 }
 
-# --- GUI SECTION OF THE SKRIPTU ---
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+# --- SCRIPT EXECUTION AND FILE VALIDATION ---
+# Process all EVT and INV files in the folder
+Write-Host "Checking for data files in '$InputFolder'..." -ForegroundColor Yellow
 
-# Create main window
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "Parking Report Generator"
-$form.Size = New-Object System.Drawing.Size(400, 300)
-$form.StartPosition = "CenterScreen"
-$form.FormBorderStyle = "FixedSingle"
-$form.MaximizeBox = $false
+$eventFiles = Get-ChildItem -Path $InputFolder -Filter "*_EVT_*.txt"
+$deviceFiles = Get-ChildItem -Path $InputFolder -Filter "*_INV_*.txt"
 
-# Input fields for start and end dates
-$labelStartDate = New-Object System.Windows.Forms.Label
-$labelStartDate.Text = "Start Date:"
-$labelStartDate.Location = New-Object System.Drawing.Point(10, 10)
-$labelStartDate.AutoSize = $true
-$form.Controls.Add($labelStartDate)
+if ($eventFiles.Count -eq 0) {
+    Write-Host "ERROR: No EVT files found in '$InputFolder'" -ForegroundColor Red
+    return
+}
 
-# Date & Time picker for start date
-$dateTimePickerStartDate = New-Object System.Windows.Forms.DateTimePicker
-$dateTimePickerStartDate.Location = New-Object System.Drawing.Point(10, 30)
-$dateTimePickerStartDate.Size = New-Object System.Drawing.Size(350, 20)
-$dateTimePickerStartDate.Format = "Custom"
-$dateTimePickerStartDate.CustomFormat = "dd.MM.yyyy HH:mm:ss"
-$dateTimePickerStartDate.ShowUpDown = $false
-$dateTimePickerStartDate.ShowCheckBox = $true
-$dateTimePickerStartDate.Checked = $false
-$form.Controls.Add($dateTimePickerStartDate)
+if ($deviceFiles.Count -eq 0) {
+    Write-Host "ERROR: No INV files found in '$InputFolder'" -ForegroundColor Red
+    return
+}
 
-$labelEndDate = New-Object System.Windows.Forms.Label
-$labelEndDate.Text = "End Date:"
-$labelEndDate.Location = New-Object System.Drawing.Point(10, 60)
-$labelEndDate.AutoSize = $true
-$form.Controls.Add($labelEndDate)
+Write-Host "Found $($eventFiles.Count) EVT files and $($deviceFiles.Count) INV files" -ForegroundColor Green
 
-# Date & Time picker for end date
-$dateTimePickerEndDate = New-Object System.Windows.Forms.DateTimePicker
-$dateTimePickerEndDate.Location = New-Object System.Drawing.Point(10, 80)
-$dateTimePickerEndDate.Size = New-Object System.Drawing.Size(350, 20)
-$dateTimePickerEndDate.Format = "Custom"
-$dateTimePickerEndDate.CustomFormat = "dd.MM.yyyy HH:mm:ss"
-$dateTimePickerEndDate.ShowUpDown = $false
-$dateTimePickerEndDate.ShowCheckBox = $true
-$dateTimePickerEndDate.Checked = $false
-$form.Controls.Add($dateTimePickerEndDate)
-
-# Button and field for input folder selection
-$labelInputFolder = New-Object System.Windows.Forms.Label
-$labelInputFolder.Text = "Input Folder:"
-$labelInputFolder.Location = New-Object System.Drawing.Point(10, 110)
-$labelInputFolder.AutoSize = $true
-$form.Controls.Add($labelInputFolder)
-
-$textBoxInputFolder = New-Object System.Windows.Forms.TextBox
-$textBoxInputFolder.Location = New-Object System.Drawing.Point(10, 130)
-$textBoxInputFolder.Size = New-Object System.Drawing.Size(260, 20)
-$textBoxInputFolder.Enabled = $false
-$form.Controls.Add($textBoxInputFolder)
-
-$buttonInputFolder = New-Object System.Windows.Forms.Button
-$buttonInputFolder.Text = "Select Folder"
-$buttonInputFolder.Location = New-Object System.Drawing.Point(280, 128)
-$buttonInputFolder.Size = New-Object System.Drawing.Size(80, 25)
-$buttonInputFolder.Add_Click({
-    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-    if ($folderBrowser.ShowDialog() -eq "OK") {
-        $textBoxInputFolder.Text = $folderBrowser.SelectedPath
-    }
-})
-$form.Controls.Add($buttonInputFolder)
-
-# Button and field for output file location
-$labelOutputFile = New-Object System.Windows.Forms.Label
-$labelOutputFile.Text = "Save As:"
-$labelOutputFile.Location = New-Object System.Drawing.Point(10, 160)
-$labelOutputFile.AutoSize = $true
-$form.Controls.Add($labelOutputFile)
-
-$textBoxOutputFile = New-Object System.Windows.Forms.TextBox
-$textBoxOutputFile.Location = New-Object System.Drawing.Point(10, 180)
-$textBoxOutputFile.Size = New-Object System.Drawing.Size(260, 20)
-$textBoxOutputFile.Enabled = $false
-$form.Controls.Add($textBoxOutputFile)
-
-$buttonOutputFile = New-Object System.Windows.Forms.Button
-$buttonOutputFile.Text = "Select File"
-$buttonOutputFile.Location = New-Object System.Drawing.Point(280, 178)
-$buttonOutputFile.Size = New-Object System.Drawing.Size(80, 25)
-$buttonOutputFile.Add_Click({
-    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveFileDialog.Filter = "Excel Report (*.xlsx)|*.xlsx"
-    $saveFileDialog.Title = "Save the generated report"
-    $saveFileDialog.FileName = "report_parking.xlsx"
-    if ($saveFileDialog.ShowDialog() -eq "OK") {
-        $textBoxOutputFile.Text = $saveFileDialog.FileName
-    }
-})
-$form.Controls.Add($buttonOutputFile)
-
-# Run button
-$buttonRun = New-Object System.Windows.Forms.Button
-$buttonRun.Text = "Generate Report"
-$buttonRun.Location = New-Object System.Drawing.Point(10, 220)
-$buttonRun.Size = New-Object System.Drawing.Size(350, 40)
-$buttonRun.Add_Click({
-    # Get values from GUI
-    $inputFolder = $textBoxInputFolder.Text
-    $outputFile = $textBoxOutputFile.Text
-    $startDate = $null
-    $endDate = $null
-
-    # Check if a start date is selected; if not, use the minimum possible date
-    if ($dateTimePickerStartDate.Checked) {
-        $startDate = $dateTimePickerStartDate.Value
-    } else {
-        $startDate = [datetime]::MinValue
-    }
-
-    # Check if an end date is selected; if not, use the maximum possible date
-    if ($dateTimePickerEndDate.Checked) {
-        # Ensure the end date includes the entire day
-        $endDate = $dateTimePickerEndDate.Value.Date.AddDays(1).AddSeconds(-1)
-    } else {
-        $endDate = [datetime]::MaxValue
-    }
-    
-    # Validate inputs
-    if (-not $inputFolder) {
-        [System.Windows.Forms.MessageBox]::Show("Please select an input folder.", "Error", "OK", "Error")
-        return
-    }
-    if (-not $outputFile) {
-        [System.Windows.Forms.MessageBox]::Show("Please select where to save the output file.", "Error", "OK", "Error")
-        return
-    }
-
-    $form.Enabled = $false
+# Check if the output file is already open
+if (Test-Path $OutputFile) {
     try {
-        Write-Host "Script has been started..."
-
-        # Check for EVT and INV files
-        $eventFiles = Get-ChildItem -Path $inputFolder -Filter "*_EVT_*.txt"
-        $deviceFiles = Get-ChildItem -Path $inputFolder -Filter "*_INV_*.txt"
-
-        if ($eventFiles.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show("No EVT files found in the selected folder.", "Error", "OK", "Error")
-            return
-        }
-
-        if ($deviceFiles.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show("No INV files found in the selected folder.", "Error", "OK", "Error")
-            return
-        }
-
-        Write-Host "Found $($eventFiles.Count) EVT files and $($deviceFiles.Count) INV files"
-
-        # Check if the output file is already open
-        if (Test-Path $outputFile) {
-            try {
-                $fileHandle = [System.IO.File]::OpenWrite($outputFile)
-                $fileHandle.Dispose()
-            } catch {
-                # This is the specific error for a locked file
-                [System.Windows.Forms.MessageBox]::Show("The output file is currently open in Excel. Please close it before running the report.", "Error: File Locked", "OK", "Error")
-                return
-            }
-        }
-
-        Get-ParkingReport -inputFolder $inputFolder -outputFile $outputFile -startDate $startDate -endDate $endDate
-        [System.Windows.Forms.MessageBox]::Show("Report was successfully generated!", "Success", "OK", "Information")
+        $fileHandle = [System.IO.File]::OpenWrite($OutputFile)
+        $fileHandle.Dispose()
+    } catch {
+        # This is the specific error for a locked file
+        Write-Host "ERROR: The output file '$OutputFile' is currently open. Please close it before running the report." -ForegroundColor Red
+        return
     }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show("An error occurred during report generation: `n$($_.Exception.Message)", "Error", "OK", "Error")
-    }
-    finally {
-        # Close the form only on success, otherwise keep it open to show the error
-        if ($_.Exception -eq $null) {
-            $form.Close()
-        } else {
-            $form.Enabled = $true
-            Write-Host "GUI remains open due to an error."
-        }
-    }
-})
-$form.Controls.Add($buttonRun)
+}
 
-# Show the form
-$form.ShowDialog() | Out-Null
+Get-ParkingReport -inputFolder $InputFolder -outputFile $OutputFile -startDate $StartDate -endDate $EndDate

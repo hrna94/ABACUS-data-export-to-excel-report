@@ -1,3 +1,13 @@
+# --- LOAD VBA INJECTION FUNCTION ---
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$vbaFunctionPath = Join-Path $scriptPath "Add-VBAToExcel.ps1"
+if (Test-Path $vbaFunctionPath) {
+    . $vbaFunctionPath
+    Write-Host "VBA injection function loaded." -ForegroundColor Green
+} else {
+    Write-Host "Warning: VBA injection function not found. Excel will be exported without VBA analysis tool." -ForegroundColor Yellow
+}
+
 # --- AUTOMATIC MODULE CHECK AND INSTALLATION ---
 Write-Host "Checking for required module 'ImportExcel'..." -ForegroundColor Yellow
 
@@ -231,33 +241,63 @@ function Get-ParkingReport {
             $exits = ($exitSummary | Where-Object Name -eq $deviceName).Exits
             
             $joinedSummary += [PSCustomObject]@{
-                'Device/Car Park' = $deviceName;
-                'Total Entries' = [int]$entries;
-                'Total Exits' = [int]$exits
+                'Parkhaus/Gerät' = $deviceName;
+                'Gesamt Einfahrten' = [int]$entries;
+                'Gesamt Ausfahrten' = [int]$exits
             }
         }
         
         # Calculate total entries and exits across all devices
-        $totalEntries = ($joinedSummary | Measure-Object -Sum 'Total Entries').Sum
-        $totalExits = ($joinedSummary | Measure-Object -Sum 'Total Exits').Sum
+        $totalEntries = ($joinedSummary | Measure-Object -Sum 'Gesamt Einfahrten').Sum
+        $totalExits = ($joinedSummary | Measure-Object -Sum 'Gesamt Ausfahrten').Sum
 
         # Add the totals row to the summary table
         $joinedSummary += [PSCustomObject]@{
-            'Device/Car Park' = "TOTAL";
-            'Total Entries' = [int]$totalEntries;
-            'Total Exits' = [int]$totalExits
+            'Parkhaus/Gerät' = "GESAMT";
+            'Gesamt Einfahrten' = [int]$totalEntries;
+            'Gesamt Ausfahrten' = [int]$totalExits
         }
 
+        # Always export as .xlsx first for VBA injection
+        $tempXlsxFile = $outputFile -replace '\.xlsm$', '.xlsx'
+
         # Export the summary table to the first sheet
-        $joinedSummary | Export-Excel -Path $outputFile -WorksheetName "Summary" -AutoSize -TableName "Summary" -TableStyle None
+        $joinedSummary | Export-Excel -Path $tempXlsxFile -WorksheetName "Zusammenfassung" -AutoSize -TableName "Summary" -TableStyle None
 
         # Export main table to the second sheet (using -Append)
         $finalReport = $completedTrips | Sort-Object 'Entry Time', 'ISO-Card number'
-        $finalReport | Export-Excel -Path $outputFile -WorksheetName "Parking Report" -Append -AutoSize -TableName "ParkingData" -TableStyle None
-        
-        Write-Host "Done! Report successfully generated to: $outputFile" -ForegroundColor Green
+        $finalReport | Export-Excel -Path $tempXlsxFile -WorksheetName "Parking Report" -Append -AutoSize -TableName "ParkingData" -TableStyle None
+
+        # Add VBA analysis tool if function is available
+        if (Get-Command "Add-VBAToExcel" -ErrorAction SilentlyContinue) {
+            $vbaFilePath = Join-Path $scriptPath "ParkingAnalysis_VBA_DE.bas"
+            if (Test-Path $vbaFilePath) {
+
+                try {
+                    $finalOutputFile = Add-VBAToExcel -ExcelFilePath $tempXlsxFile -VBAFilePath $vbaFilePath
+                    Write-Host "Done! Report with VBA analysis tool generated to: $finalOutputFile" -ForegroundColor Green
+                    Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                } catch {
+                    Write-Host "Error during VBA integration: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "Export completed but VBA integration failed. File saved to: $tempXlsxFile" -ForegroundColor Yellow
+                    Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                }
+            } else {
+                Write-Host "Warning: VBA file not found. Report generated without analysis tool: $tempXlsxFile" -ForegroundColor Yellow
+                Write-Host "Press any key to exit..." -ForegroundColor Cyan
+                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+            }
+        } else {
+            Write-Host "Done! Report successfully generated to: $tempXlsxFile" -ForegroundColor Green
+            Write-Host "Press any key to exit..." -ForegroundColor Cyan
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        }
     } else {
         Write-Host "WARNING: No records found for export. Output file was not created." -ForegroundColor Yellow
+        Write-Host "Press any key to exit..." -ForegroundColor Cyan
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     }
     Write-Host "--- Script finished ---"
 }
