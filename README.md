@@ -140,23 +140,17 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 **If VBA integration fails and only a plain XLSX file is generated:**
 
-1. **Run the Excel VBA Fix Tool:**
-   ```
-   Double-click: Fix-Excel-VBA.bat
-   ```
+This happens when Excel Trust Center blocks VBA project access. To fix this:
 
-   This tool will:
-   - Check if Excel is properly installed
-   - Guide you through Trust Center configuration
-   - Optionally modify registry settings automatically
-   - Test VBA project access
+1. **Open Excel manually**
+2. **Go to:** File → Options → Trust Center → Trust Center Settings
+3. **Select:** Macro Settings
+4. **Check:** "Trust access to the VBA project object model"
+5. **Select:** "Disable all macros with notification" (recommended security level)
+6. **Click OK** and restart Excel
+7. **Run the script again**
 
-2. **What the fix does:**
-   - Enables "Trust access to the VBA project object model" in Excel
-   - Sets macro security to notification level
-   - Configures Excel to allow VBA code injection
-
-3. **Manual alternative:** See `docs/VBA_Integration_Troubleshooting.md` for step-by-step instructions
+After this configuration, the script will successfully generate XLSM files with VBA analysis tools.
 
 ### Common Issues
 **Macros not working:**

@@ -66,7 +66,7 @@ function Add-VBAToExcel {
                 Write-Host "4. Check 'Trust access to the VBA project object model'" -ForegroundColor White
                 Write-Host "5. Restart Excel and try again" -ForegroundColor White
                 Write-Host "" -ForegroundColor Yellow
-                Write-Host "See docs\VBA_Integration_Troubleshooting.md for detailed instructions." -ForegroundColor Cyan
+                Write-Host "See README.md for detailed instructions." -ForegroundColor Cyan
                 throw "VBA project access is blocked - Excel Trust Center settings need to be adjusted"
             }
 
@@ -90,7 +90,7 @@ function Add-VBAToExcel {
                 Write-Host "- Excel macro security settings are too restrictive" -ForegroundColor White
                 Write-Host "- Excel COM interface issues" -ForegroundColor White
                 Write-Host "" -ForegroundColor Cyan
-                Write-Host "See docs\VBA_Integration_Troubleshooting.md for solutions." -ForegroundColor Cyan
+                Write-Host "See README.md for solutions." -ForegroundColor Cyan
                 throw "Failed to add VBA module: $($_.Exception.Message)"
             }
         }
@@ -151,7 +151,7 @@ function Add-VBAToExcel {
             Write-Host "1. Enable VBA project access in Excel Trust Center" -ForegroundColor White
             Write-Host "2. Check if Excel is properly installed" -ForegroundColor White
             Write-Host "3. Run PowerShell as Administrator" -ForegroundColor White
-            Write-Host "4. Check docs\VBA_Integration_Troubleshooting.md" -ForegroundColor Cyan
+            Write-Host "4. Check README.md" -ForegroundColor Cyan
         }
 
         # Cleanup on error
