@@ -20,12 +20,28 @@ function Add-VBAToExcel {
         Write-Host "Opening Excel file: $ExcelFilePath" -ForegroundColor Gray
 
         # Create Excel COM object
-        $excel = New-Object -ComObject Excel.Application
-        $excel.Visible = $false
-        $excel.DisplayAlerts = $false
+        try {
+            $excel = New-Object -ComObject Excel.Application
+            if ($excel -eq $null) {
+                throw "Failed to create Excel COM object"
+            }
+            $excel.Visible = $false
+            $excel.DisplayAlerts = $false
+            Write-Host "Excel COM object created successfully" -ForegroundColor Green
+        } catch {
+            throw "Excel is not installed or COM interface is not available: $($_.Exception.Message)"
+        }
 
         # Open the Excel file
-        $workbook = $excel.Workbooks.Open($ExcelFilePath)
+        try {
+            $workbook = $excel.Workbooks.Open($ExcelFilePath)
+            if ($workbook -eq $null) {
+                throw "Failed to open workbook"
+            }
+            Write-Host "Workbook opened successfully" -ForegroundColor Green
+        } catch {
+            throw "Failed to open Excel file: $($_.Exception.Message)"
+        }
 
         # Read VBA code from file
         if (Test-Path $VBAFilePath) {
@@ -35,8 +51,49 @@ function Add-VBAToExcel {
         }
 
         # Add VBA module
-        $vbaModule = $workbook.VBProject.VBComponents.Add(1)  # 1 = vbext_ct_StdModule
-        $vbaModule.Name = "ParkingAnalysisModule"
+        try {
+            Write-Host "Accessing VBA project..." -ForegroundColor Gray
+            $vbaProject = $workbook.VBProject
+            if ($vbaProject -eq $null) {
+                Write-Host "" -ForegroundColor Red
+                Write-Host "ERROR: VBA project access is blocked!" -ForegroundColor Red
+                Write-Host "This usually means Excel Trust Center settings are blocking VBA access." -ForegroundColor Yellow
+                Write-Host "" -ForegroundColor Yellow
+                Write-Host "SOLUTION:" -ForegroundColor Green
+                Write-Host "1. Open Excel manually" -ForegroundColor White
+                Write-Host "2. Go to File → Options → Trust Center → Trust Center Settings" -ForegroundColor White
+                Write-Host "3. Select 'Macro Settings'" -ForegroundColor White
+                Write-Host "4. Check 'Trust access to the VBA project object model'" -ForegroundColor White
+                Write-Host "5. Restart Excel and try again" -ForegroundColor White
+                Write-Host "" -ForegroundColor Yellow
+                Write-Host "See docs\VBA_Integration_Troubleshooting.md for detailed instructions." -ForegroundColor Cyan
+                throw "VBA project access is blocked - Excel Trust Center settings need to be adjusted"
+            }
+
+            Write-Host "Adding VBA module..." -ForegroundColor Gray
+            $vbaModule = $vbaProject.VBComponents.Add(1)  # 1 = vbext_ct_StdModule
+            if ($vbaModule -eq $null) {
+                throw "Failed to add VBA module"
+            }
+            $vbaModule.Name = "ParkingAnalysisModule"
+            Write-Host "VBA module added successfully" -ForegroundColor Green
+        } catch {
+            if ($_.Exception.Message -like "*VBA project access is blocked*") {
+                throw $_.Exception.Message
+            } else {
+                Write-Host "" -ForegroundColor Red
+                Write-Host "VBA Integration Error Details:" -ForegroundColor Red
+                Write-Host "Error: $($_.Exception.Message)" -ForegroundColor White
+                Write-Host "" -ForegroundColor Yellow
+                Write-Host "Common causes:" -ForegroundColor Yellow
+                Write-Host "- VBA project object model access is disabled" -ForegroundColor White
+                Write-Host "- Excel macro security settings are too restrictive" -ForegroundColor White
+                Write-Host "- Excel COM interface issues" -ForegroundColor White
+                Write-Host "" -ForegroundColor Cyan
+                Write-Host "See docs\VBA_Integration_Troubleshooting.md for solutions." -ForegroundColor Cyan
+                throw "Failed to add VBA module: $($_.Exception.Message)"
+            }
+        }
         $vbaModule.CodeModule.AddFromString($vbaCode)
 
         # Create XLSM file path
@@ -81,7 +138,21 @@ function Add-VBAToExcel {
         }
 
     } catch {
-        Write-Host "Error adding VBA to Excel: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "" -ForegroundColor Red
+        Write-Host "VBA Integration Failed: $($_.Exception.Message)" -ForegroundColor Red
+
+        if ($_.Exception.Message -like "*VBA project access is blocked*") {
+            Write-Host "" -ForegroundColor Yellow
+            Write-Host "The script will continue and generate a standard XLSX file." -ForegroundColor Yellow
+            Write-Host "You can manually add VBA later using the troubleshooting guide." -ForegroundColor Yellow
+        } else {
+            Write-Host "" -ForegroundColor Yellow
+            Write-Host "Possible solutions:" -ForegroundColor Yellow
+            Write-Host "1. Enable VBA project access in Excel Trust Center" -ForegroundColor White
+            Write-Host "2. Check if Excel is properly installed" -ForegroundColor White
+            Write-Host "3. Run PowerShell as Administrator" -ForegroundColor White
+            Write-Host "4. Check docs\VBA_Integration_Troubleshooting.md" -ForegroundColor Cyan
+        }
 
         # Cleanup on error
         if ($workbook) {
@@ -91,6 +162,8 @@ function Add-VBAToExcel {
             try { $excel.Quit() } catch { }
         }
 
+        Write-Host "" -ForegroundColor Gray
+        Write-Host "Continuing with standard XLSX export..." -ForegroundColor Gray
         return $ExcelFilePath  # Return original file if VBA addition fails
     } finally {
         # Release COM objects immediately (no background processing)
